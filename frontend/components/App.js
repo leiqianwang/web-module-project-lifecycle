@@ -1,144 +1,117 @@
 import React from 'react'
 import axios from 'axios';
+import TodoList from './TodoList'; // Ensure this import is correct based on your file structure
 
 const URL = 'http://localhost:9000/api/todos'
 
 export default class App extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-        todos: [], // Assuming your API returns an array of todos
-        // Add other state properties if needed
-        message: '',// Initialize an empty string for the message
-        error: '',
-        todoNameInput:  '',
-        showCompleted: true
-    };
-}
+    constructor(props) {
+        super(props);
+        this.state = {
+            todos: [],
+            message: '',
+            error: '',
+            todoNameInput: '',
+            showCompleted: true
+        };
+    }
 
-componentDidMount() {
-    axios.get(URL)
+    fetchAllTodos = () => {
+        axios.get(URL)
         .then(res => {
-            // Assuming the response contains an array of todos
-            this.setState({
-               todos: res.data.data,
-               message: res.data.message
-               });
+          //  console.log("Todos fetched:", res.data); // Log the response
+            this.setState({...this.state, 
+                todos: res.data.data
+                //message: res.data.message
+            // }, () => {
+            //     console.log("Updated state:", this.state.todos); // Log the updated state
+            });
         })
         .catch(err => {
-          console.error(err.message);
-          // Optionally set some state to show an error message
+            console.error(err.message);
+            this.setState({ error: 'Error fetching todos: ' + err.message });
         });
-}
+    }
 
+    componentDidMount() {
+        this.fetchAllTodos();
+    }
 
-             onTodoInputChange = (e) => {
-               const { value } = e.target;
-               this.setState({...this.state, todoNameInput: value})
-              }
+    onTodoInputChange = (e) => {
+        const { value } = e.target;
+        this.setState({ todoNameInput: value });
+    }
 
+    onTodoSubmit = e => {
+        e.preventDefault();
+        const newTodo = {
+            name: this.state.todoNameInput,
+            completed: false
+        };
 
-
-              onTodoSubmit = e => {
-                e.preventDefault(); // Prevent the default form submission behavior
-            
-                const newTodo = {
-                    // Omit the 'id' if your backend generates it
-                    name: this.state.todoNameInput,
-                    completed: false
-                };
-            
-                axios.post(URL, newTodo)
-                    .then(response => {
-                        // Assuming the response includes the new todo with a generated ID
-                        this.setState(prevState => ({
-                            todos: [...prevState.todos, response.data],
-                            todoNameInput: '' // Reset input after adding
-                        }));
-                    })
-                    .catch(error => {
-                        // Handle error
-                        this.setState({ error: 'Error adding todo: ' + error.message });
-                    });
-            }
-
-      // componentDidUpdate(prevProps, prevState) {
-      //   if (this.state.todos !== prevState.todos) {
-      //       axios.post('http://localhost:9000/api/updateTodos', this.state.todos.todoNameInput)
-      //           .then(response => {
-      //               // Handle successful update
-      //               console.log('Todos updated successfully:', response.data);
-      //               // Optionally, set state to indicate success, e.g., this.setState({ updateSuccess: true });
-      //           })
-      //           .catch(error => {
-      //               // Handle error
-      //               //set a state to show an error message, or perform other error handling actions
-      //               console.error('Error updating todos:', error);
-      //               this.setState({ updateError: true });
-      //           });
-      //   }
-      // }
-              toggleCompletion = id => {
+        axios.post(URL, newTodo)
+            .then(response => {
                 this.setState(prevState => ({
-                    todos: prevState.todos.map(todo => {
-                        if (todo.id === id) {
-                            return { ...todo, completed: !todo.completed };
-                        }
-                        return todo;
-                    })
-                }), () => {
-                    // After state is updated, make an API call to update the backend
-                    const todo = this.state.todos.find(todo => todo.id === id);
-                    axios.patch(`${URL}/${id}`, { completed: todo.completed })
-                        .then(res => {
-                            console.log('Completion toggled', res.data);
-                        })
-                        .catch(err => {
-                            console.error('Error toggling completion:', err);
-                        });
+                    todos: [...prevState.todos, response.data],
+                    todoNameInput: ''
+                }));
+            })
+            .catch(error => {
+                this.setState({ error: 'Error adding todo: ' + error.message });
+            });
+    }
+
+    toggleCompletion = id => {
+        this.setState(prevState => ({
+            todos: prevState.todos.map(todo => {
+                if (todo.id === id) {
+                    return { ...todo, completed: !todo.completed };
+                }
+                return todo;
+            })
+        }), () => {
+            const todo = this.state.todos.find(todo => todo.id === id);
+            axios.patch(`${URL}/${id}`, { completed: todo.completed })
+                .then(res => {
+                    console.log('Completion toggled', res.data);
+                })
+                .catch(err => {
+                    console.error('Error toggling completion:', err);
                 });
-            }
+        });
+    }
 
-            toggleShowCompleted = () => {
-              this.setState(prevState => ({
-                  showCompleted: !prevState.showCompleted
-              }));
-          }
+    toggleShowCompleted = () => {
+        this.setState(prevState => ({
+            showCompleted: !prevState.showCompleted
+        }));
+    }
 
-
-  render() {
-         // Filter todos based on showCompleted state
+    render() {
         const visibleTodos = this.state.showCompleted 
-        ? this.state.todos 
-        : this.state.todos.filter(todo => !todo.completed);
+            ? this.state.todos 
+            : this.state.todos.filter(todo => !todo.completed);
 
-    return (
-              <div>
+        return (
+            <div>
                 <div id="error">{this.state.error}</div>
-  
                 <div id="todos">
-
-                        <h1>{this.state.message}</h1>
+                    <h1>{this.state.message}</h1>
+                    {
+                        this.state.todos.map(td => {
+                            return <div key={td.id}>{td.name}</div>
+                        })
+                    }
                 </div>
-                 
-                {visibleTodos.map(todo => (
-                <div key={todo.id} onClick={() => this.toggleCompletion(todo.id)}>
-                  {todo.name} - {todo.completed ? 'Completed' : 'Not Completed'}
-                  </div>     
-            ))}
-
+                <TodoList todos={visibleTodos} toggleCompletion={this.toggleCompletion} />
                 <form id="todoForm" onSubmit={this.onTodoSubmit}>
-              <input value={this.state.todoNameInput} onChange={this.onTodoInputChange}  type="text" placeholder='Type Todo'></input>
-              <input type="submit"></input>
-
-
+                    <input value={this.state.todoNameInput} onChange={this.onTodoInputChange} type="text" placeholder='Type Todo'></input>
+                    <input type="submit"></input>
                 </form>
-
                 <button onClick={this.toggleShowCompleted}>
-                {this.state.showCompleted ? "Hide" : "Show"} Completed   </button>
-              </div>
-
-
-    )
-  }
+                    {this.state.showCompleted ? "Hide" : "Show"} Completed
+                </button>
+            </div>
+        )
+    }
 }
